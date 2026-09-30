@@ -60,7 +60,7 @@ func main() {
 	private.PUT("/tasks/:id", tasks.Update)
 	private.DELETE("/tasks/:id", tasks.Delete)
 	comments := handler.CommentHandler{Repo: repository.CommentRepository{DB: db}, Worker: backgroundWorker}
-	private.GET("/tasks/:task_id/comments", comments.List)
+	private.GET("/tasks/:id/comments", comments.List)
 	private.POST("/comments", comments.Create)
 	private.GET("/comments/:id", comments.Get)
 	private.PUT("/comments/:id", comments.Update)

@@ -28,7 +28,7 @@ API chạy tại `http://localhost:8080`. Health check: `GET /health`.
 - `GET|PUT|DELETE /api/v1/users/me` - xem, cập nhật hoặc xóa tài khoản hiện tại
 - `GET|POST|PUT|DELETE /api/v1/projects[/:id]`
 - `GET|POST|PUT|DELETE /api/v1/tasks[/:id]`
-- `GET /api/v1/tasks/:task_id/comments`
+- `GET /api/v1/tasks/:id/comments`
 - `POST /api/v1/comments` - tạo comment `{body,task_id}`
 - `GET|PUT|DELETE /api/v1/comments/:id`
 - `GET /api/v1/tasks?status=todo&page=1&limit=20&sort=oldest`

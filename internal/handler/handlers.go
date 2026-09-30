@@ -251,7 +251,7 @@ type CommentHandler struct {
 }
 
 func (h CommentHandler) List(c *gin.Context) {
-	taskID, ok := pathParam(c, "task_id")
+	taskID, ok := pathID(c)
 	if !ok {
 		return
 	}

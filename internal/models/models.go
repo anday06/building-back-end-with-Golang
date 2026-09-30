@@ -15,7 +15,7 @@ type User struct {
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
 	DeletedAt    gorm.DeletedAt `json:"-"`
-	Projects     []Project      `json:"-"`
+	Projects     []Project      `gorm:"foreignKey:OwnerID" json:"-"`
 }
 
 type Project struct {
