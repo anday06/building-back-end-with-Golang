@@ -10,14 +10,33 @@ go mod tidy
 go run ./cmd/server
 ```
 
-Hoặc chạy đầy đủ dependency bằng Docker:
+Hoặc chạy đầy đủ dependency bằng Docker CLI + Docker Engine:
 
-```powershell
-Copy-Item .env.example .env
-docker compose up --build
+```bash
+docker compose up --build -d
+docker compose ps
+curl http://localhost:8080/health
 ```
 
-Docker Compose cũng có default development values và có thể chạy trực tiếp bằng `docker compose up --build` khi chưa tạo `.env`; hãy dùng `.env` riêng khi cần đổi secret hoặc thông tin database.
+Các lệnh trên dùng Docker CLI (`docker` và `docker compose`), không cần Docker Desktop. Docker CLI vẫn cần một Docker Engine đang chạy, ví dụ Docker Engine trong Linux/WSL2. Dừng stack bằng `docker compose down`.
+
+### Docker CLI không dùng Compose
+
+```bash
+docker network create task-network
+docker run -d --name tasks-db --network task-network -e POSTGRES_DB=tasks -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16-alpine
+docker run -d --name tasks-redis --network task-network -p 6379:6379 redis:7-alpine
+docker build -t task-management-api .
+docker run -d --name tasks-api --network task-network -p 8080:8080 -e PORT=8080 -e DATABASE_URL="host=tasks-db user=postgres password=postgres dbname=tasks port=5432 sslmode=disable" -e REDIS_URL=tasks-redis:6379 -e JWT_SECRET=change-this-secret task-management-api
+curl http://localhost:8080/health
+```
+
+Dọn các container CLI:
+
+```bash
+docker rm -f tasks-api tasks-db tasks-redis
+docker network rm task-network
+```
 
 API chạy tại `http://localhost:8080`. Health check: `GET /health`.
 
@@ -73,7 +92,7 @@ Repo đã có `render.yaml` để tạo web service Docker, PostgreSQL và Redis
 - Core API: User, Project, Task và Comment có các endpoint cần thiết; Project, Task và Comment có list/create/get/update/delete.
 - Architecture: `cmd`, `internal/{config,database,handler,middleware,models,repository,service}` và `pkg`.
 - Optimization: pagination/filtering/sorting, GORM soft delete, Redis cache cho task list, per-client rate limiting, request logging, Prometheus metrics, health check, graceful shutdown và Docker multi-stage build.
-- Bonus realtime/testing: WebSocket hub xác thực JWT, background worker notification và integration test PostgreSQL bằng Testcontainers (`go test -tags=integration ./internal/integration`). Integration test cần Docker Desktop đang chạy.
+- Bonus realtime/testing: WebSocket hub xác thực JWT, background worker notification và integration test PostgreSQL bằng Testcontainers (`go test -tags=integration ./internal/integration`). Integration test cần Docker Engine đang chạy.
 - Delivery: GitHub Actions chạy format check, `go vet`, test và build; Postman collection dùng cho demo API.
 
 ## Nộp bài
