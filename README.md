@@ -20,6 +20,28 @@ curl http://localhost:8080/health
 
 Các lệnh trên dùng Docker CLI (`docker` và `docker compose`), không cần Docker Desktop. Docker CLI vẫn cần một Docker Engine đang chạy, ví dụ Docker Engine trong Linux/WSL2. Dừng stack bằng `docker compose down`.
 
+Nếu dùng Windows không cài Docker Desktop, hãy chạy các lệnh Docker trong terminal Ubuntu WSL2. Cài Docker Engine và Compose plugin một lần:
+
+```bash
+sudo apt update
+sudo apt install -y docker.io docker-compose-v2
+sudo service docker start
+docker version
+docker compose version
+```
+
+Sau đó chạy project từ Ubuntu WSL2:
+
+```bash
+cd /mnt/e/Building_back_end_with_Golang
+docker compose up --build -d
+docker compose ps
+docker compose logs -f app
+curl http://localhost:8080/health
+```
+
+Nếu `docker compose version` không tồn tại, dùng lệnh cũ `docker-compose` sau khi cài `docker-compose` package. Nếu `docker version` chỉ hiện `Client` hoặc báo pipe không tồn tại, Docker daemon chưa chạy; thực hiện `sudo service docker start` trong Ubuntu.
+
 ### Docker CLI không dùng Compose
 
 ```bash
