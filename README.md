@@ -31,7 +31,9 @@ API chạy tại `http://localhost:8080`. Health check: `GET /health`.
 - `GET /api/v1/tasks/:task_id/comments`
 - `POST /api/v1/comments` - tạo comment `{body,task_id}`
 - `GET|PUT|DELETE /api/v1/comments/:id`
-- `GET /api/v1/tasks?status=todo`
+- `GET /api/v1/tasks?status=todo&page=1&limit=20&sort=oldest`
+- Các endpoint list hỗ trợ `page`, `limit` tối đa 100 và `sort=oldest` (mặc định mới nhất trước).
+- `GET /metrics` - Prometheus metrics; `GET /health` - health check.
 
 Các route users/project/task/comment yêu cầu header `Authorization: Bearer <token>`. Token chứa `user_id`, `role`, thời điểm phát hành và thời điểm hết hạn; middleware chỉ chấp nhận chữ ký HS256 với đúng `JWT_SECRET`.
 
@@ -47,7 +49,7 @@ Các route users/project/task/comment yêu cầu header `Authorization: Bearer <
 
 ## Kiến trúc
 
-Request đi qua CORS, logging, recovery và JWT middleware trước handler. Handler chịu trách nhiệm HTTP/validation, repository chịu trách nhiệm truy vấn GORM, PostgreSQL lưu dữ liệu và Redis cache danh sách task trong 1 phút.
+Request đi qua CORS, logging, metrics, rate limiting, recovery và JWT middleware trước handler. Handler chịu trách nhiệm HTTP/validation, repository chịu trách nhiệm truy vấn GORM, PostgreSQL lưu dữ liệu và Redis cache danh sách task theo bộ lọc trong 1 phút. Các model dùng soft delete của GORM, nên bản ghi bị xóa không bị mất vật lý khỏi database. Server xử lý SIGINT/SIGTERM và graceful shutdown trong tối đa 10 giây.
 
 ## Kiểm thử
 
@@ -68,7 +70,7 @@ Repo đã có `render.yaml` để tạo web service Docker, PostgreSQL và Redis
 
 - Core API: User, Project, Task và Comment có các endpoint cần thiết; Project, Task và Comment có list/create/get/update/delete.
 - Architecture: `cmd`, `internal/{config,database,handler,middleware,models,repository,service}` và `pkg`.
-- Optimization: Redis cache cho task list, per-client rate limiting, request logging, health check và Docker multi-stage build.
+- Optimization: pagination/filtering/sorting, GORM soft delete, Redis cache cho task list, per-client rate limiting, request logging, Prometheus metrics, health check, graceful shutdown và Docker multi-stage build.
 - Delivery: GitHub Actions chạy format check, `go vet`, test và build; Postman collection dùng cho demo API.
 
 ## Nộp bài

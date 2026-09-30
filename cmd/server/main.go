@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"task-management-api/internal/config"
 	"task-management-api/internal/database"
 	"task-management-api/internal/handler"
@@ -25,8 +29,9 @@ func main() {
 	}
 	cache := database.Redis(cfg.RedisURL)
 	router := gin.New()
-	router.Use(gin.Recovery(), middleware.Logger(), middleware.RateLimit(), cors.New(cors.Config{AllowOrigins: []string{"*"}, AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, AllowHeaders: []string{"Origin", "Content-Type", "Authorization"}}))
+	router.Use(gin.Recovery(), middleware.Logger(), middleware.Metrics(), middleware.RateLimit(), cors.New(cors.Config{AllowOrigins: []string{"*"}, AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, AllowHeaders: []string{"Origin", "Content-Type", "Authorization"}}))
 	router.GET("/health", handler.Health)
+	router.GET("/metrics", middleware.MetricsHandler())
 	auth := handler.AuthHandler{Service: service.AuthService{DB: db, Config: cfg}}
 	router.POST("/api/v1/auth/register", auth.Register)
 	router.POST("/api/v1/auth/login", auth.Login)
@@ -55,8 +60,24 @@ func main() {
 	private.PUT("/comments/:id", comments.Update)
 	private.DELETE("/comments/:id", comments.Delete)
 	server := &http.Server{Addr: ":" + cfg.Port, Handler: router, ReadHeaderTimeout: 5 * time.Second}
-	log.Printf("task management API listening on :%s", cfg.Port)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatal(err)
+	serverErrors := make(chan error, 1)
+	go func() {
+		log.Printf("task management API listening on :%s", cfg.Port)
+		serverErrors <- server.ListenAndServe()
+	}()
+
+	shutdownSignal, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	select {
+	case err := <-serverErrors:
+		if err != nil && err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
+	case <-shutdownSignal.Done():
+		shutdownContext, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdownContext); err != nil {
+			log.Printf("graceful shutdown failed: %v", err)
+		}
 	}
 }

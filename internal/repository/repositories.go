@@ -33,9 +33,10 @@ func (r UserRepository) Delete(id uint) error {
 	return nil
 }
 
-func (r ProjectRepository) List(ownerID uint) ([]models.Project, error) {
+func (r ProjectRepository) List(ownerID uint, page, limit int, sort string) ([]models.Project, error) {
 	var items []models.Project
-	err := r.DB.Where("owner_id = ?", ownerID).Preload("Tasks").Find(&items).Error
+	offset := (page - 1) * limit
+	err := r.DB.Where("owner_id = ?", ownerID).Preload("Tasks").Order(sort).Offset(offset).Limit(limit).Find(&items).Error
 	return items, err
 }
 func (r ProjectRepository) Get(id, ownerID uint) (models.Project, error) {
@@ -62,9 +63,10 @@ type TaskRepository struct {
 
 type CommentRepository struct{ DB *gorm.DB }
 
-func (r CommentRepository) List(taskID, ownerID uint) ([]models.Comment, error) {
+func (r CommentRepository) List(taskID, ownerID uint, page, limit int, sort string) ([]models.Comment, error) {
 	var items []models.Comment
-	err := r.DB.Joins("JOIN tasks ON tasks.id = comments.task_id").Joins("JOIN projects ON projects.id = tasks.project_id").Where("comments.task_id = ? AND projects.owner_id = ?", taskID, ownerID).Order("comments.created_at ASC").Find(&items).Error
+	offset := (page - 1) * limit
+	err := r.DB.Joins("JOIN tasks ON tasks.id = comments.task_id").Joins("JOIN projects ON projects.id = tasks.project_id").Where("comments.task_id = ? AND projects.owner_id = ?", taskID, ownerID).Order(sort).Offset(offset).Limit(limit).Find(&items).Error
 	return items, err
 }
 
@@ -87,13 +89,14 @@ func (r CommentRepository) Delete(id, authorID uint) error {
 	return nil
 }
 
-func (r TaskRepository) List(ownerID uint, status string) ([]models.Task, error) {
+func (r TaskRepository) List(ownerID uint, status string, page, limit int, sort string) ([]models.Task, error) {
 	var items []models.Task
 	query := r.DB.Where("project_id IN (SELECT id FROM projects WHERE owner_id = ?)", ownerID)
 	if status != "" {
 		query = query.Where("status = ?", status)
 	}
-	err := query.Order("created_at DESC").Find(&items).Error
+	offset := (page - 1) * limit
+	err := query.Order(sort).Offset(offset).Limit(limit).Find(&items).Error
 	return items, err
 }
 func (r TaskRepository) Get(id, ownerID uint) (models.Task, error) {
@@ -114,16 +117,14 @@ func (r TaskRepository) Delete(id, ownerID uint) error {
 }
 func (r TaskRepository) Invalidate(ctx context.Context, ownerID uint) {
 	if r.Cache != nil {
-		_ = r.Cache.Del(ctx,
-			fmt.Sprintf("tasks:%d:", ownerID),
-			fmt.Sprintf("tasks:%d:todo", ownerID),
-			fmt.Sprintf("tasks:%d:in_progress", ownerID),
-			fmt.Sprintf("tasks:%d:done", ownerID),
-		).Err()
+		keys, err := r.Cache.Keys(ctx, fmt.Sprintf("tasks:%d:*", ownerID)).Result()
+		if err == nil && len(keys) > 0 {
+			_ = r.Cache.Del(ctx, keys...).Err()
+		}
 	}
 }
-func (r TaskRepository) CachedList(ctx context.Context, ownerID uint, status string) ([]models.Task, error) {
-	key := fmt.Sprintf("tasks:%d:%s", ownerID, status)
+func (r TaskRepository) CachedList(ctx context.Context, ownerID uint, status string, page, limit int, sort string) ([]models.Task, error) {
+	key := fmt.Sprintf("tasks:%d:%s:%d:%d:%s", ownerID, status, page, limit, sort)
 	if r.Cache != nil {
 		if raw, err := r.Cache.Get(ctx, key).Result(); err == nil {
 			var items []models.Task
@@ -132,7 +133,7 @@ func (r TaskRepository) CachedList(ctx context.Context, ownerID uint, status str
 			}
 		}
 	}
-	items, err := r.List(ownerID, status)
+	items, err := r.List(ownerID, status, page, limit, sort)
 	if err != nil {
 		return nil, err
 	}

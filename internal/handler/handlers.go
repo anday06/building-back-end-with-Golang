@@ -38,10 +38,27 @@ func pathParam(c *gin.Context, name string) (uint, bool) {
 	return uint(id), true
 }
 
+func listParams(c *gin.Context) (int, int, string) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+	sort := "created_at DESC"
+	if c.Query("sort") == "oldest" {
+		sort = "created_at ASC"
+	}
+	return page, limit, sort
+}
+
 type ProjectHandler struct{ Repo repository.ProjectRepository }
 
 func (h ProjectHandler) List(c *gin.Context) {
-	items, err := h.Repo.List(currentUser(c))
+	page, limit, sort := listParams(c)
+	items, err := h.Repo.List(currentUser(c), page, limit, sort)
 	if err != nil {
 		response.Error(c, 500, "could not list projects")
 		return
@@ -126,7 +143,8 @@ func (h ProjectHandler) Delete(c *gin.Context) {
 type TaskHandler struct{ Repo repository.TaskRepository }
 
 func (h TaskHandler) List(c *gin.Context) {
-	items, err := h.Repo.CachedList(c, currentUser(c), c.Query("status"))
+	page, limit, sort := listParams(c)
+	items, err := h.Repo.CachedList(c, currentUser(c), c.Query("status"), page, limit, sort)
 	if err != nil {
 		response.Error(c, 500, "could not list tasks")
 		return
@@ -233,7 +251,8 @@ func (h CommentHandler) List(c *gin.Context) {
 	if !ok {
 		return
 	}
-	items, err := h.Repo.List(taskID, currentUser(c))
+	page, limit, sort := listParams(c)
+	items, err := h.Repo.List(taskID, currentUser(c), page, limit, sort)
 	if err != nil {
 		response.Error(c, 500, "could not list comments")
 		return
