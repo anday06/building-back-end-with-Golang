@@ -1,17 +1,63 @@
 {
   "info": {
     "name": "Task Management API",
-    "description": "REST API demo for the Go Task Management assignment.",
+    "description": "Postman collection for Task Management API demo",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8080" },
-    { "key": "token", "value": "" },
-    { "key": "projectId", "value": "1" },
-    { "key": "taskId", "value": "1" },
-    { "key": "commentId", "value": "1" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "projectId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "taskId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "commentId",
+      "value": "",
+      "type": "string"
+    }
   ],
   "item": [
+    {
+      "name": "Health & Docs",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health"
+          }
+        },
+        {
+          "name": "Metrics",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/metrics"
+          }
+        },
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/swagger/index.html"
+          }
+        }
+      ]
+    },
     {
       "name": "Authentication",
       "item": [
@@ -19,71 +65,101 @@
           "name": "Register",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Demo User\",\n  \"email\": \"demo@example.com\",\n  \"password\": \"password123\"\n}"
-            },
-            "url": "{{baseUrl}}/api/v1/auth/register"
+              "raw": "{\n  \"name\": \"Demo User\",\n  \"email\": \"demo@example.com\",\n  \"password\": \"secret123\"\n}"
+            }
           }
         },
         {
-          "name": "Login and save token",
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo@example.com\",\n  \"password\": \"secret123\"\n}"
+            }
+          },
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "const json = pm.response.json();",
-                  "if (json.data && json.data.token) pm.collectionVariables.set('token', json.data.token);"
-                ]
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set('token', json.data.token);",
+                  "  console.log('Token saved:', json.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
               }
             }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"demo@example.com\",\n  \"password\": \"password123\"\n}"
-            },
-            "url": "{{baseUrl}}/api/v1/auth/login"
-          }
+          ]
         }
       ]
     },
     {
-      "name": "Users",
+      "name": "User Profile",
       "item": [
         {
-          "name": "Get my profile",
+          "name": "Get Me",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{baseUrl}}/api/v1/users/me"
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           }
         },
         {
-          "name": "Update my profile",
+          "name": "Update Me",
           "request": {
             "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/users/me",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Updated Demo User\",\n  \"email\": \"demo@example.com\",\n  \"password\": \"newpassword123\"\n}"
-            },
-            "url": "{{baseUrl}}/api/v1/users/me"
+              "raw": "{\n  \"name\": \"Demo User Updated\",\n  \"email\": \"demo2@example.com\",\n  \"password\": \"newsecret123\"\n}"
+            }
           }
         },
         {
-          "name": "Delete my account",
+          "name": "Delete Me",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{baseUrl}}/api/v1/users/me"
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           }
         }
       ]
@@ -92,57 +168,99 @@
       "name": "Projects",
       "item": [
         {
-          "name": "List projects",
+          "name": "List Projects",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{baseUrl}}/api/v1/projects"
+            "url": "{{baseUrl}}/api/v1/projects",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           }
         },
         {
-          "name": "Create project",
+          "name": "Create Project",
           "request": {
             "method": "POST",
+            "url": "{{baseUrl}}/api/v1/projects",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Demo Project\",\n  \"description\": \"Project created from Postman\"\n}"
-            },
-            "url": "{{baseUrl}}/api/v1/projects"
-          }
+              "raw": "{\n  \"name\": \"My Project\",\n  \"description\": \"Project description for demo\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set('projectId', json.data.id);",
+                  "  console.log('Project ID saved:', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "Get project",
+          "name": "Get Project",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}"
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           }
         },
         {
-          "name": "Update project",
+          "name": "Update Project",
           "request": {
             "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Updated Project\",\n  \"description\": \"Updated description\"\n}"
-            },
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}"
+              "raw": "{\n  \"name\": \"My Project Updated\",\n  \"description\": \"Updated description\"\n}"
+            }
           }
         },
         {
-          "name": "Delete project",
+          "name": "Delete Project",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}"
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           }
         }
       ]
@@ -151,116 +269,253 @@
       "name": "Tasks",
       "item": [
         {
-          "name": "List tasks",
+          "name": "List Tasks (with pagination & filter)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{baseUrl}}/api/v1/tasks?status=todo"
+            "url": "{{baseUrl}}/api/v1/tasks",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "queryParams": [
+              {
+                "key": "page",
+                "value": "1"
+              },
+              {
+                "key": "limit",
+                "value": "10"
+              },
+              {
+                "key": "status",
+                "value": "todo"
+              },
+              {
+                "key": "sort",
+                "value": "created_at DESC"
+              }
+            ]
           }
         },
         {
-          "name": "Create task",
+          "name": "Create Task",
           "request": {
             "method": "POST",
+            "url": "{{baseUrl}}/api/v1/tasks",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Demo task\",\n  \"description\": \"Task created from Postman\",\n  \"project_id\": 1,\n  \"status\": \"todo\",\n  \"priority\": \"medium\"\n}"
-            },
-            "url": "{{baseUrl}}/api/v1/tasks"
-          }
+              "raw": "{\n  \"title\": \"Sample Task\",\n  \"description\": \"Task description\",\n  \"status\": \"todo\",\n  \"priority\": \"high\",\n  \"project_id\": {{projectId}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set('taskId', json.data.id);",
+                  "  console.log('Task ID saved:', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "Get task",
+          "name": "Get Task",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}"
+            "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           }
         },
         {
-          "name": "Update task",
+          "name": "Update Task",
           "request": {
             "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Updated task\",\n  \"description\": \"Updated description\",\n  \"status\": \"in_progress\",\n  \"priority\": \"high\"\n}"
-            },
-            "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}"
+              "raw": "{\n  \"title\": \"Updated Task\",\n  \"description\": \"Updated description\",\n  \"status\": \"in_progress\",\n  \"priority\": \"medium\"\n}"
+            }
           }
         },
         {
-          "name": "Delete task",
+          "name": "Delete Task",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}"
+            "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           }
         }
       ]
     },
     {
-      "name": "Comments",
+      "name": "Comments & WebSocket",
       "item": [
         {
-          "name": "List comments",
+          "name": "List Comments for Task",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}/comments"
+            "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}/comments",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           }
         },
         {
-          "name": "Create comment",
+          "name": "Create Comment",
           "request": {
             "method": "POST",
+            "url": "{{baseUrl}}/api/v1/comments",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"body\": \"A useful comment\",\n  \"task_id\": 1\n}"
-            },
-            "url": "{{baseUrl}}/api/v1/comments"
-          }
+              "raw": "{\n  \"body\": \"This is a comment on the task\",\n  \"task_id\": {{taskId}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set('commentId', json.data.id);",
+                  "  console.log('Comment ID saved:', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "Get comment",
+          "name": "Get Comment",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{baseUrl}}/api/v1/comments/{{commentId}}"
+            "url": "{{baseUrl}}/api/v1/comments/{{commentId}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           }
         },
         {
-          "name": "Update comment",
+          "name": "Update Comment (author only)",
           "request": {
             "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/comments/{{commentId}}",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"body\": \"Updated comment\"\n}"
-            },
-            "url": "{{baseUrl}}/api/v1/comments/{{commentId}}"
+              "raw": "{\n  \"body\": \"Updated comment content\"\n}"
+            }
           }
         },
         {
-          "name": "Delete comment",
+          "name": "Delete Comment",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{baseUrl}}/api/v1/comments/{{commentId}}"
+            "url": "{{baseUrl}}/api/v1/comments/{{commentId}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "WebSocket Connection (Manual)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/ws?token={{token}}",
+            "header": [
+              {
+                "key": "Upgrade",
+                "value": "websocket"
+              },
+              {
+                "key": "Connection",
+                "value": "Upgrade"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Admin Status (requires admin role)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/status",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           }
         }
       ]
