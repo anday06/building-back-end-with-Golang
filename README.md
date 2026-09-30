@@ -23,6 +23,7 @@ API chạy tại `http://localhost:8080`. Health check: `GET /health`.
 
 - `POST /api/v1/auth/register` - đăng ký `{name,email,password}`
 - `POST /api/v1/auth/login` - đăng nhập `{email,password}`, nhận JWT
+- `GET|PUT|DELETE /api/v1/users/me` - xem, cập nhật hoặc xóa tài khoản hiện tại
 - `GET|POST|PUT|DELETE /api/v1/projects[/:id]`
 - `GET|POST|PUT|DELETE /api/v1/tasks[/:id]`
 - `GET /api/v1/tasks/:task_id/comments`
@@ -30,7 +31,7 @@ API chạy tại `http://localhost:8080`. Health check: `GET /health`.
 - `GET|PUT|DELETE /api/v1/comments/:id`
 - `GET /api/v1/tasks?status=todo`
 
-Các route project/task/comment yêu cầu header `Authorization: Bearer <token>`. Token chứa `user_id`, `role`, thời điểm phát hành và thời điểm hết hạn; middleware chỉ chấp nhận chữ ký HS256 với đúng `JWT_SECRET`.
+Các route users/project/task/comment yêu cầu header `Authorization: Bearer <token>`. Token chứa `user_id`, `role`, thời điểm phát hành và thời điểm hết hạn; middleware chỉ chấp nhận chữ ký HS256 với đúng `JWT_SECRET`.
 
 ## Authentication và middleware
 
@@ -63,7 +64,7 @@ Repo đã có `render.yaml` để tạo web service Docker, PostgreSQL và Redis
 
 ## Coverage rubric
 
-- Core API: Project, Task và Comment có list/create/get/update/delete; User có register/login.
+- Core API: User, Project, Task và Comment có các endpoint cần thiết; Project, Task và Comment có list/create/get/update/delete.
 - Architecture: `cmd`, `internal/{config,database,handler,middleware,models,repository,service}` và `pkg`.
 - Optimization: Redis cache cho task list, per-client rate limiting, request logging, health check và Docker multi-stage build.
 - Delivery: GitHub Actions chạy format check, `go vet`, test và build; Postman collection dùng cho demo API.

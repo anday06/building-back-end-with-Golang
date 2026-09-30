@@ -6,6 +6,7 @@ import (
 	"strings"
 	"task-management-api/internal/config"
 	"task-management-api/internal/models"
+	"task-management-api/internal/repository"
 	"task-management-api/pkg/password"
 	"task-management-api/pkg/token"
 )
@@ -14,6 +15,29 @@ type AuthService struct {
 	DB     *gorm.DB
 	Config config.Config
 }
+
+type UserService struct{ Repo repository.UserRepository }
+
+func (s UserService) Get(id uint) (models.User, error) { return s.Repo.Get(id) }
+
+func (s UserService) Update(id uint, name, email, rawPassword string) (models.User, error) {
+	user, err := s.Repo.Get(id)
+	if err != nil {
+		return user, err
+	}
+	user.Name = name
+	user.Email = strings.ToLower(email)
+	if rawPassword != "" {
+		hash, hashErr := password.Hash(rawPassword)
+		if hashErr != nil {
+			return models.User{}, hashErr
+		}
+		user.PasswordHash = hash
+	}
+	return user, s.Repo.Save(&user)
+}
+
+func (s UserService) Delete(id uint) error { return s.Repo.Delete(id) }
 
 func (s AuthService) Register(name, email, rawPassword string) (models.User, error) {
 	var existing models.User

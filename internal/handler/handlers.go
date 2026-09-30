@@ -113,6 +113,10 @@ func (h ProjectHandler) Delete(c *gin.Context) {
 		return
 	}
 	if err := h.Repo.Delete(id, currentUser(c)); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(c, 404, "project not found")
+			return
+		}
 		response.Error(c, 500, "could not delete project")
 		return
 	}
@@ -211,6 +215,10 @@ func (h TaskHandler) Delete(c *gin.Context) {
 		return
 	}
 	if err := h.Repo.Delete(id, currentUser(c)); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(c, 404, "task not found")
+			return
+		}
 		response.Error(c, 500, "could not delete task")
 		return
 	}
@@ -309,6 +317,10 @@ func (h CommentHandler) Delete(c *gin.Context) {
 		return
 	}
 	if err := h.Repo.Delete(id, currentUser(c)); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(c, 404, "comment not found or not owned by user")
+			return
+		}
 		response.Error(c, 500, "could not delete comment")
 		return
 	}

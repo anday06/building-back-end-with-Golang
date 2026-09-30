@@ -12,6 +12,27 @@ import (
 
 type ProjectRepository struct{ DB *gorm.DB }
 
+type UserRepository struct{ DB *gorm.DB }
+
+func (r UserRepository) Get(id uint) (models.User, error) {
+	var item models.User
+	err := r.DB.First(&item, id).Error
+	return item, err
+}
+
+func (r UserRepository) Save(item *models.User) error { return r.DB.Save(item).Error }
+
+func (r UserRepository) Delete(id uint) error {
+	result := r.DB.Delete(&models.User{}, id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 func (r ProjectRepository) List(ownerID uint) ([]models.Project, error) {
 	var items []models.Project
 	err := r.DB.Where("owner_id = ?", ownerID).Preload("Tasks").Find(&items).Error
@@ -24,7 +45,14 @@ func (r ProjectRepository) Get(id, ownerID uint) (models.Project, error) {
 }
 func (r ProjectRepository) Save(item *models.Project) error { return r.DB.Save(item).Error }
 func (r ProjectRepository) Delete(id, ownerID uint) error {
-	return r.DB.Where("id = ? AND owner_id = ?", id, ownerID).Delete(&models.Project{}).Error
+	result := r.DB.Where("id = ? AND owner_id = ?", id, ownerID).Delete(&models.Project{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 type TaskRepository struct {
@@ -49,7 +77,14 @@ func (r CommentRepository) Get(id, ownerID uint) (models.Comment, error) {
 func (r CommentRepository) Save(item *models.Comment) error { return r.DB.Save(item).Error }
 
 func (r CommentRepository) Delete(id, authorID uint) error {
-	return r.DB.Where("id = ? AND author_id = ?", id, authorID).Delete(&models.Comment{}).Error
+	result := r.DB.Where("id = ? AND author_id = ?", id, authorID).Delete(&models.Comment{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r TaskRepository) List(ownerID uint, status string) ([]models.Task, error) {
@@ -68,7 +103,14 @@ func (r TaskRepository) Get(id, ownerID uint) (models.Task, error) {
 }
 func (r TaskRepository) Save(item *models.Task) error { return r.DB.Save(item).Error }
 func (r TaskRepository) Delete(id, ownerID uint) error {
-	return r.DB.Where("id = ? AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)", id, ownerID).Delete(&models.Task{}).Error
+	result := r.DB.Where("id = ? AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)", id, ownerID).Delete(&models.Task{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 func (r TaskRepository) Invalidate(ctx context.Context, ownerID uint) {
 	if r.Cache != nil {

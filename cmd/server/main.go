@@ -32,6 +32,10 @@ func main() {
 	router.POST("/api/v1/auth/login", auth.Login)
 	private := router.Group("/api/v1", middleware.Auth(cfg))
 	private.GET("/admin/status", middleware.AdminOnly(), handler.AdminStatus)
+	users := handler.UserHandler{Service: service.UserService{Repo: repository.UserRepository{DB: db}}}
+	private.GET("/users/me", users.Me)
+	private.PUT("/users/me", users.UpdateMe)
+	private.DELETE("/users/me", users.DeleteMe)
 	projects := handler.ProjectHandler{Repo: repository.ProjectRepository{DB: db}}
 	private.GET("/projects", projects.List)
 	private.POST("/projects", projects.Create)
