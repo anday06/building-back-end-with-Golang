@@ -13,6 +13,7 @@ import (
 	"task-management-api/internal/database"
 	"task-management-api/internal/handler"
 	"task-management-api/internal/middleware"
+	"task-management-api/internal/realtime"
 	"task-management-api/internal/repository"
 	"task-management-api/internal/service"
 	"time"
@@ -32,6 +33,8 @@ func main() {
 	router.Use(gin.Recovery(), middleware.Logger(), middleware.Metrics(), middleware.RateLimit(), cors.New(cors.Config{AllowOrigins: []string{"*"}, AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, AllowHeaders: []string{"Origin", "Content-Type", "Authorization"}}))
 	router.GET("/health", handler.Health)
 	router.GET("/metrics", middleware.MetricsHandler())
+	websocketHub := realtime.NewHub(cfg.JWTSecret)
+	router.GET("/ws", websocketHub.Handle)
 	auth := handler.AuthHandler{Service: service.AuthService{DB: db, Config: cfg}}
 	router.POST("/api/v1/auth/register", auth.Register)
 	router.POST("/api/v1/auth/login", auth.Login)
