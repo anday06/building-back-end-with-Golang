@@ -17,6 +17,8 @@ Copy-Item .env.example .env
 docker compose up --build
 ```
 
+Docker Compose cũng có default development values và có thể chạy trực tiếp bằng `docker compose up --build` khi chưa tạo `.env`; hãy dùng `.env` riêng khi cần đổi secret hoặc thông tin database.
+
 API chạy tại `http://localhost:8080`. Health check: `GET /health`.
 
 ## Endpoint chính

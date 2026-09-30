@@ -3,7 +3,15 @@ services:
     build: .
     ports:
       - "8080:8080"
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: ${PORT:-8080}
+      DATABASE_URL: ${DATABASE_URL:-host=db user=postgres password=postgres dbname=tasks port=5432 sslmode=disable}
+      REDIS_URL: ${REDIS_URL:-redis:6379}
+      JWT_SECRET: ${JWT_SECRET:-development-secret}
+      JWT_EXPIRES_HOURS: ${JWT_EXPIRES_HOURS:-24}
     depends_on:
       db:
         condition: service_healthy
