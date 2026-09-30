@@ -1,0 +1,103 @@
+package repository
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
+	"task-management-api/internal/models"
+	"time"
+)
+
+type ProjectRepository struct{ DB *gorm.DB }
+
+func (r ProjectRepository) List(ownerID uint) ([]models.Project, error) {
+	var items []models.Project
+	err := r.DB.Where("owner_id = ?", ownerID).Preload("Tasks").Find(&items).Error
+	return items, err
+}
+func (r ProjectRepository) Get(id, ownerID uint) (models.Project, error) {
+	var item models.Project
+	err := r.DB.Where("id = ? AND owner_id = ?", id, ownerID).Preload("Tasks").First(&item).Error
+	return item, err
+}
+func (r ProjectRepository) Save(item *models.Project) error { return r.DB.Save(item).Error }
+func (r ProjectRepository) Delete(id, ownerID uint) error {
+	return r.DB.Where("id = ? AND owner_id = ?", id, ownerID).Delete(&models.Project{}).Error
+}
+
+type TaskRepository struct {
+	DB    *gorm.DB
+	Cache *redis.Client
+}
+
+type CommentRepository struct{ DB *gorm.DB }
+
+func (r CommentRepository) List(taskID, ownerID uint) ([]models.Comment, error) {
+	var items []models.Comment
+	err := r.DB.Joins("JOIN tasks ON tasks.id = comments.task_id").Joins("JOIN projects ON projects.id = tasks.project_id").Where("comments.task_id = ? AND projects.owner_id = ?", taskID, ownerID).Order("comments.created_at ASC").Find(&items).Error
+	return items, err
+}
+
+func (r CommentRepository) Get(id, ownerID uint) (models.Comment, error) {
+	var item models.Comment
+	err := r.DB.Joins("JOIN tasks ON tasks.id = comments.task_id").Joins("JOIN projects ON projects.id = tasks.project_id").Where("comments.id = ? AND projects.owner_id = ?", id, ownerID).First(&item).Error
+	return item, err
+}
+
+func (r CommentRepository) Save(item *models.Comment) error { return r.DB.Save(item).Error }
+
+func (r CommentRepository) Delete(id, authorID uint) error {
+	return r.DB.Where("id = ? AND author_id = ?", id, authorID).Delete(&models.Comment{}).Error
+}
+
+func (r TaskRepository) List(ownerID uint, status string) ([]models.Task, error) {
+	var items []models.Task
+	query := r.DB.Where("project_id IN (SELECT id FROM projects WHERE owner_id = ?)", ownerID)
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	err := query.Order("created_at DESC").Find(&items).Error
+	return items, err
+}
+func (r TaskRepository) Get(id, ownerID uint) (models.Task, error) {
+	var item models.Task
+	err := r.DB.Where("tasks.id = ? AND projects.owner_id = ?", id, ownerID).Joins("JOIN projects ON projects.id = tasks.project_id").First(&item).Error
+	return item, err
+}
+func (r TaskRepository) Save(item *models.Task) error { return r.DB.Save(item).Error }
+func (r TaskRepository) Delete(id, ownerID uint) error {
+	return r.DB.Where("id = ? AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)", id, ownerID).Delete(&models.Task{}).Error
+}
+func (r TaskRepository) Invalidate(ctx context.Context, ownerID uint) {
+	if r.Cache != nil {
+		_ = r.Cache.Del(ctx,
+			fmt.Sprintf("tasks:%d:", ownerID),
+			fmt.Sprintf("tasks:%d:todo", ownerID),
+			fmt.Sprintf("tasks:%d:in_progress", ownerID),
+			fmt.Sprintf("tasks:%d:done", ownerID),
+		).Err()
+	}
+}
+func (r TaskRepository) CachedList(ctx context.Context, ownerID uint, status string) ([]models.Task, error) {
+	key := fmt.Sprintf("tasks:%d:%s", ownerID, status)
+	if r.Cache != nil {
+		if raw, err := r.Cache.Get(ctx, key).Result(); err == nil {
+			var items []models.Task
+			if json.Unmarshal([]byte(raw), &items) == nil {
+				return items, nil
+			}
+		}
+	}
+	items, err := r.List(ownerID, status)
+	if err != nil {
+		return nil, err
+	}
+	if r.Cache != nil {
+		if raw, marshalErr := json.Marshal(items); marshalErr == nil {
+			_ = r.Cache.Set(ctx, key, raw, time.Minute).Err()
+		}
+	}
+	return items, nil
+}
