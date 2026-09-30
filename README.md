@@ -1,122 +1,230 @@
 # Task Management API
 
-REST API cho hệ thống quản lý công việc, xây dựng bằng Go 1.21+, Gin, GORM, PostgreSQL, Redis và JWT.
+REST API for Task Management built with Go, Gin, PostgreSQL, Redis, and Docker.
 
-## Chạy local
+## Features
 
-```powershell
-Copy-Item .env.example .env
-go mod tidy
+- **Authentication**: JWT-based auth with register/login, bcrypt password hashing
+- **Authorization**: Role-based access control (admin/user), protected routes
+- **Resources**: Projects, Tasks, Comments with full CRUD
+- **Real-time**: WebSocket notifications for comments
+- **Caching**: Redis caching for task lists with auto-invalidation
+- **Rate Limiting**: Token bucket per IP
+- **Observability**: Structured logging, Prometheus metrics, health check
+- **Graceful Shutdown**: Signal handling with 10s timeout
+- **Background Jobs**: Worker pool for async notifications
+- **Soft Delete**: GORM soft delete on all resources
+- **Pagination/Filtering/Sorting**: On all list endpoints
+- **API Docs**: Swagger UI at `/swagger/index.html`
+- **CI/CD**: GitHub Actions (fmt, vet, test, build)
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Language | Go 1.23 |
+| Framework | Gin |
+| Database | PostgreSQL 16 + GORM |
+| Cache | Redis 7 + go-redis |
+| Auth | JWT (golang-jwt/jwt/v5) + bcrypt |
+| Real-time | Gorilla WebSocket |
+| Docs | Swagger (swaggo) |
+| Testing | testify, httptest |
+| CI/CD | GitHub Actions |
+| Container | Docker multi-stage, docker-compose |
+
+## Project Structure
+
+```
+.
+├── cmd/server              # Application entry point
+├── internal/
+│   ├── config              # Configuration loading
+│   ├── database            # DB connection & migration
+│   ├── handler             # HTTP handlers (Gin)
+│   ├── middleware          # Auth, logging, rate limit, CORS, metrics
+│   ├── models              # GORM models
+│   ├── repository          # Data access layer
+│   ├── service             # Business logic
+│   ├── job                 # Background worker pool
+│   └── realtime            # WebSocket hub
+├── pkg/
+│   ├── password            # Bcrypt helpers
+│   ├── response            # Standard JSON responses
+│   └── token               # JWT create/parse
+├── docs/                   # Swagger generated files
+├── docker-compose.yml      # Local dev stack
+├── Dockerfile              # Multi-stage build
+├── Makefile                # Common commands
+└── .github/workflows/ci.yml
+```
+
+## Quick Start
+
+### Prerequisites
+- Docker Desktop
+- Go 1.23+ (for local dev without Docker)
+
+### Using Docker Compose (Recommended)
+
+```bash
+# Clone repo
+git clone https://github.com/anday06/building-back-end-with-Golang.git
+cd building-back-end-with-Golang
+
+# Start all services (app, postgres, redis)
+docker compose up --build
+
+# API available at http://localhost:8080
+# Swagger UI at http://localhost:8080/swagger/index.html
+```
+
+### Local Development (without Docker)
+
+```bash
+# Start PostgreSQL & Redis separately
+docker run -d --name postgres -e POSTGRES_PASSWORD=12345 -e POSTGRES_DB=tasks -p 5432:5432 postgres:16-alpine
+docker run -d --name redis -p 6379:6379 redis:7-alpine
+
+# Copy env and adjust if needed
+cp .env.example .env
+
+# Run migrations & start server
 go run ./cmd/server
 ```
 
-Hoặc chạy đầy đủ dependency bằng Docker CLI + Docker Engine:
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8080` | HTTP port |
+| `DATABASE_URL` | `host=localhost user=postgres password=postgres dbname=tasks port=5432 sslmode=disable` | Postgres DSN |
+| `REDIS_URL` | `localhost:6379` | Redis address |
+| `JWT_SECRET` | `development-secret` | JWT signing secret |
+| `JWT_EXPIRES_HOURS` | `24` | Token expiry |
+
+## API Endpoints
+
+### Public
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Health check |
+| GET | `/metrics` | Prometheus metrics |
+| GET | `/swagger/*` | Swagger UI |
+| POST | `/api/v1/auth/register` | Register |
+| POST | `/api/v1/auth/login` | Login |
+
+### Protected (require `Authorization: Bearer <token>`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/users/me` | Get current user |
+| PUT | `/api/v1/users/me` | Update current user |
+| DELETE | `/api/v1/users/me` | Delete current user |
+| GET | `/api/v1/projects` | List projects |
+| POST | `/api/v1/projects` | Create project |
+| GET | `/api/v1/projects/:id` | Get project |
+| PUT | `/api/v1/projects/:id` | Update project |
+| DELETE | `/api/v1/projects/:id` | Delete project |
+| GET | `/api/v1/tasks` | List tasks (filter: `?status=todo`) |
+| POST | `/api/v1/tasks` | Create task |
+| GET | `/api/v1/tasks/:id` | Get task |
+| PUT | `/api/v1/tasks/:id` | Update task |
+| DELETE | `/api/v1/tasks/:id` | Delete task |
+| GET | `/api/v1/tasks/:id/comments` | List task comments |
+| POST | `/api/v1/comments` | Create comment |
+| GET | `/api/v1/comments/:id` | Get comment |
+| PUT | `/api/v1/comments/:id` | Update comment (author only) |
+| DELETE | `/api/v1/comments/:id` | Delete comment (author only) |
+| GET | `/api/v1/admin/status` | Admin only |
+| GET | `/ws?token=<jwt>` | WebSocket realtime |
+
+### Query Parameters (List endpoints)
+- `page` (default: 1)
+- `limit` (default: 20, max: 100)
+- `sort` (default: `created_at DESC`, use `oldest` for ASC)
+- `status` (tasks only): `todo`, `in_progress`, `done`
+
+## Example Usage
 
 ```bash
-docker compose up --build -d
-docker compose ps
-curl http://localhost:8080/health
+# Register
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"John","email":"john@example.com","password":"secret123"}'
+
+# Login
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"john@example.com","password":"secret123"}'
+
+# Use token
+TOKEN="eyJhbGciOiJIUzI1NiIs..."
+
+# Create project
+curl -X POST http://localhost:8080/api/v1/projects \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"My Project","description":"Project description"}'
+
+# List tasks with pagination
+curl -G http://localhost:8080/api/v1/tasks \
+  -H "Authorization: Bearer $TOKEN" \
+  -d page=1 -d limit=10 -d status=todo
 ```
 
-Các lệnh trên dùng Docker CLI (`docker` và `docker compose`), không cần Docker Desktop. Docker CLI vẫn cần một Docker Engine đang chạy, ví dụ Docker Engine trong Linux/WSL2. Dừng stack bằng `docker compose down`.
-
-Nếu dùng Windows không cài Docker Desktop, hãy chạy các lệnh Docker trong terminal Ubuntu WSL2. Cài Docker Engine và Compose plugin một lần:
+## Testing
 
 ```bash
-sudo apt update
-sudo apt install -y docker.io docker-compose-v2
-sudo service docker start
-docker version
-docker compose version
-```
-
-Sau đó chạy project từ Ubuntu WSL2:
-
-```bash
-cd /mnt/e/Building_back_end_with_Golang
-docker compose up --build -d
-docker compose ps
-docker compose logs -f app
-curl http://localhost:8080/health
-```
-
-Nếu `docker compose version` không tồn tại, dùng lệnh cũ `docker-compose` sau khi cài `docker-compose` package. Nếu `docker version` chỉ hiện `Client` hoặc báo pipe không tồn tại, Docker daemon chưa chạy; thực hiện `sudo service docker start` trong Ubuntu.
-
-### Docker CLI không dùng Compose
-
-```bash
-docker network create task-network
-docker run -d --name tasks-db --network task-network -e POSTGRES_DB=tasks -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16-alpine
-docker run -d --name tasks-redis --network task-network -p 6379:6379 redis:7-alpine
-docker build -t task-management-api .
-docker run -d --name tasks-api --network task-network -p 8080:8080 -e PORT=8080 -e DATABASE_URL="host=tasks-db user=postgres password=postgres dbname=tasks port=5432 sslmode=disable" -e REDIS_URL=tasks-redis:6379 -e JWT_SECRET=change-this-secret task-management-api
-curl http://localhost:8080/health
-```
-
-Dọn các container CLI:
-
-```bash
-docker rm -f tasks-api tasks-db tasks-redis
-docker network rm task-network
-```
-
-API chạy tại `http://localhost:8080`. Health check: `GET /health`.
-
-## Endpoint chính
-
-- `POST /api/v1/auth/register` - đăng ký `{name,email,password}`
-- `POST /api/v1/auth/login` - đăng nhập `{email,password}`, nhận JWT
-- `GET|PUT|DELETE /api/v1/users/me` - xem, cập nhật hoặc xóa tài khoản hiện tại
-- `GET|POST|PUT|DELETE /api/v1/projects[/:id]`
-- `GET|POST|PUT|DELETE /api/v1/tasks[/:id]`
-- `GET /api/v1/tasks/:id/comments`
-- `POST /api/v1/comments` - tạo comment `{body,task_id}`
-- `GET|PUT|DELETE /api/v1/comments/:id`
-- `GET /api/v1/tasks?status=todo&page=1&limit=20&sort=oldest`
-- Các endpoint list hỗ trợ `page`, `limit` tối đa 100 và `sort=oldest` (mặc định mới nhất trước).
-- `GET /metrics` - Prometheus metrics; `GET /health` - health check.
-- `GET /ws?token=<jwt>` - WebSocket echo/broadcast realtime channel.
-- Comment mới được đưa vào background worker queue để xử lý notification bất đồng bộ.
-
-Các route users/project/task/comment yêu cầu header `Authorization: Bearer <token>`. Token chứa `user_id`, `role`, thời điểm phát hành và thời điểm hết hạn; middleware chỉ chấp nhận chữ ký HS256 với đúng `JWT_SECRET`.
-
-## Authentication và middleware
-
-- `POST /api/v1/auth/register`: kiểm tra input bằng validator, băm password bằng bcrypt và tạo user role `user`.
-- `POST /api/v1/auth/login`: xác thực email/password và trả JWT.
-- `middleware.Auth`: bảo vệ toàn bộ route `/api/v1` private.
-- `middleware.Logger`: ghi method, path, HTTP status và thời gian xử lý request.
-- CORS: cho phép frontend gửi request với các method CRUD và header Authorization.
-- `middleware.AdminOnly`: phân quyền role `admin`; kiểm tra bằng `GET /api/v1/admin/status`.
-  Route `GET /api/v1/admin/status` yêu cầu JWT có claim `role=admin`; user thường nhận `403`.
-
-## Kiến trúc
-
-Request đi qua CORS, logging, metrics, rate limiting, recovery và JWT middleware trước handler. Handler chịu trách nhiệm HTTP/validation, repository chịu trách nhiệm truy vấn GORM, PostgreSQL lưu dữ liệu và Redis cache danh sách task theo bộ lọc trong 1 phút. Các model dùng soft delete của GORM, nên bản ghi bị xóa không bị mất vật lý khỏi database. Server xử lý SIGINT/SIGTERM và graceful shutdown trong tối đa 10 giây.
-
-## Kiểm thử
-
-```powershell
+# Run all tests
 go test ./...
-go vet ./...
+
+# Run with coverage
+go test -cover ./...
+
+# Specific package
+go test ./internal/handler -v
 ```
 
-## API documentation
+## Docker
 
-Import `docs/postman_collection.json` vào Postman. Collection có sẵn các request register, login, CRUD Project, CRUD Task và CRUD Comment. Request login tự lưu JWT vào biến `token`; cập nhật `projectId`, `taskId` và `commentId` theo dữ liệu trả về khi chạy demo.
+```bash
+# Build image
+docker build -t task-api .
 
-## Deploy bằng Render
+# Run container (needs external DB/Redis)
+docker run -p 8080:8080 \
+  -e DATABASE_URL="host=host.docker.internal user=postgres password=12345 dbname=tasks port=5432 sslmode=disable" \
+  -e REDIS_URL="host.docker.internal:6379" \
+  -e JWT_SECRET="prod-secret" \
+  task-api
+```
 
-Repo đã có `render.yaml` để tạo web service Docker, PostgreSQL và Redis. Trên Render chọn **New > Blueprint**, kết nối GitHub repository và deploy. `DATABASE_URL`, `REDIS_URL` và `JWT_SECRET` được cấp qua biến môi trường; không commit secret thật. Sau khi deploy, kiểm tra `GET https://<your-service>.onrender.com/health` rồi đổi biến `baseUrl` trong Postman.
+## Deploy to Render (Free)
 
-## Coverage rubric
+1. Push repo to GitHub
+2. Create Render account → New Web Service → Connect GitHub repo
+3. Environment: **Docker**
+4. Add Environment Variables:
+   - `DATABASE_URL` (from Render PostgreSQL)
+   - `REDIS_URL` (from Render Redis)
+   - `JWT_SECRET` (generate strong secret)
+   - `JWT_EXPIRES_HOURS=24`
+5. Deploy → Get `https://your-app.onrender.com`
 
-- Core API: User, Project, Task và Comment có các endpoint cần thiết; Project, Task và Comment có list/create/get/update/delete.
-- Architecture: `cmd`, `internal/{config,database,handler,middleware,models,repository,service}` và `pkg`.
-- Optimization: pagination/filtering/sorting, GORM soft delete, Redis cache cho task list, per-client rate limiting, request logging, Prometheus metrics, health check, graceful shutdown và Docker multi-stage build.
-- Bonus realtime/testing: WebSocket hub xác thực JWT, background worker notification và integration test PostgreSQL bằng Testcontainers (`go test -tags=integration ./internal/integration`). Integration test cần Docker Engine đang chạy.
-- Delivery: GitHub Actions chạy format check, `go vet`, test và build; Postman collection dùng cho demo API.
+## CI/CD Pipeline
 
-## Nộp bài
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR:
+- `gofmt` check
+- `go vet`
+- `go test ./...`
+- `go build ./cmd/server`
 
-Bổ sung họ tên, mã học viên, lớp, link GitHub, link deploy và video demo vào báo cáo cá nhân. Không commit file `.env` hoặc secret thật.
+## Swagger Documentation
+
+After running locally or deployed:
+- **Local**: http://localhost:8080/swagger/index.html
+- **Production**: `https://your-domain/swagger/index.html`
+
+## License
+
+MIT

@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	_ "task-management-api/docs"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/swaggo/files"
+	"github.com/swaggo/gin-swagger"
 	"log"
 	"net/http"
 	"os"
@@ -19,6 +22,26 @@ import (
 	"task-management-api/internal/service"
 	"time"
 )
+
+// @title Task Management API
+// @version 1.0
+// @description REST API for Task Management with Projects, Tasks, Comments, Auth, WebSocket
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://www.swagger.io/support
+// @contact.email support@swagger.io
+
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+
+// @host localhost:8080
+// @BasePath /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 
 func main() {
 	cfg := config.Load()
@@ -36,6 +59,7 @@ func main() {
 	router.Use(gin.Recovery(), middleware.Logger(), middleware.Metrics(), middleware.RateLimit(), cors.New(cors.Config{AllowOrigins: []string{"*"}, AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, AllowHeaders: []string{"Origin", "Content-Type", "Authorization"}}))
 	router.GET("/health", handler.Health)
 	router.GET("/metrics", middleware.MetricsHandler())
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	websocketHub := realtime.NewHub(cfg.JWTSecret)
 	router.GET("/ws", websocketHub.Handle)
 	auth := handler.AuthHandler{Service: service.AuthService{DB: db, Config: cfg}}
