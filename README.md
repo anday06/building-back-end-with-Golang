@@ -35,6 +35,7 @@ API chạy tại `http://localhost:8080`. Health check: `GET /health`.
 - Các endpoint list hỗ trợ `page`, `limit` tối đa 100 và `sort=oldest` (mặc định mới nhất trước).
 - `GET /metrics` - Prometheus metrics; `GET /health` - health check.
 - `GET /ws?token=<jwt>` - WebSocket echo/broadcast realtime channel.
+- Comment mới được đưa vào background worker queue để xử lý notification bất đồng bộ.
 
 Các route users/project/task/comment yêu cầu header `Authorization: Bearer <token>`. Token chứa `user_id`, `role`, thời điểm phát hành và thời điểm hết hạn; middleware chỉ chấp nhận chữ ký HS256 với đúng `JWT_SECRET`.
 
@@ -72,7 +73,7 @@ Repo đã có `render.yaml` để tạo web service Docker, PostgreSQL và Redis
 - Core API: User, Project, Task và Comment có các endpoint cần thiết; Project, Task và Comment có list/create/get/update/delete.
 - Architecture: `cmd`, `internal/{config,database,handler,middleware,models,repository,service}` và `pkg`.
 - Optimization: pagination/filtering/sorting, GORM soft delete, Redis cache cho task list, per-client rate limiting, request logging, Prometheus metrics, health check, graceful shutdown và Docker multi-stage build.
-- Bonus realtime/testing: WebSocket hub xác thực JWT và integration test PostgreSQL bằng Testcontainers (`go test -tags=integration ./internal/integration`). Integration test cần Docker Desktop đang chạy.
+- Bonus realtime/testing: WebSocket hub xác thực JWT, background worker notification và integration test PostgreSQL bằng Testcontainers (`go test -tags=integration ./internal/integration`). Integration test cần Docker Desktop đang chạy.
 - Delivery: GitHub Actions chạy format check, `go vet`, test và build; Postman collection dùng cho demo API.
 
 ## Nộp bài

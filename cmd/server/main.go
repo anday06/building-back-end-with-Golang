@@ -12,6 +12,7 @@ import (
 	"task-management-api/internal/config"
 	"task-management-api/internal/database"
 	"task-management-api/internal/handler"
+	"task-management-api/internal/job"
 	"task-management-api/internal/middleware"
 	"task-management-api/internal/realtime"
 	"task-management-api/internal/repository"
@@ -29,6 +30,8 @@ func main() {
 		log.Fatal(err)
 	}
 	cache := database.Redis(cfg.RedisURL)
+	backgroundWorker := job.NewWorker(100)
+	defer backgroundWorker.Close()
 	router := gin.New()
 	router.Use(gin.Recovery(), middleware.Logger(), middleware.Metrics(), middleware.RateLimit(), cors.New(cors.Config{AllowOrigins: []string{"*"}, AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, AllowHeaders: []string{"Origin", "Content-Type", "Authorization"}}))
 	router.GET("/health", handler.Health)
@@ -56,7 +59,7 @@ func main() {
 	private.GET("/tasks/:id", tasks.Get)
 	private.PUT("/tasks/:id", tasks.Update)
 	private.DELETE("/tasks/:id", tasks.Delete)
-	comments := handler.CommentHandler{Repo: repository.CommentRepository{DB: db}}
+	comments := handler.CommentHandler{Repo: repository.CommentRepository{DB: db}, Worker: backgroundWorker}
 	private.GET("/tasks/:task_id/comments", comments.List)
 	private.POST("/comments", comments.Create)
 	private.GET("/comments/:id", comments.Get)

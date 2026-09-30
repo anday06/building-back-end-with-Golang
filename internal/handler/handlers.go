@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"strconv"
+	"task-management-api/internal/job"
 	"task-management-api/internal/models"
 	"task-management-api/internal/repository"
 	"task-management-api/pkg/response"
@@ -244,7 +245,10 @@ func (h TaskHandler) Delete(c *gin.Context) {
 	c.Status(204)
 }
 
-type CommentHandler struct{ Repo repository.CommentRepository }
+type CommentHandler struct {
+	Repo   repository.CommentRepository
+	Worker *job.Worker
+}
 
 func (h CommentHandler) List(c *gin.Context) {
 	taskID, ok := pathParam(c, "task_id")
@@ -294,6 +298,9 @@ func (h CommentHandler) Create(c *gin.Context) {
 	if err := h.Repo.Save(&item); err != nil {
 		response.Error(c, 500, "could not create comment")
 		return
+	}
+	if h.Worker != nil {
+		h.Worker.Enqueue(job.Notification{TaskID: item.TaskID, AuthorID: item.AuthorID, Body: item.Body})
 	}
 	response.Success(c, 201, item)
 }
